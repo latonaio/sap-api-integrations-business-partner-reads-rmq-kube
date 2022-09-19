@@ -120,6 +120,18 @@ func (c *SAPAPICaller) General(businessPartner string) {
 		return
 	}
 	c.log.Info(bankData)
+	
+	contactData, err := c.callToContact(generalData[0].ToContact)
+	if err != nil {
+		c.log.Error(err)
+		return
+	}
+	err = c.outputter.Send(c.outputQueues[0], map[string]interface{}{"message": contactData, "function": "BusinessPartnerContact"})
+	if err != nil {
+		c.log.Error(err)
+		return
+	}
+	c.log.Info(contactData)
 
 }
 
@@ -192,6 +204,24 @@ func (c *SAPAPICaller) callToBank(url string) ([]sap_api_output_formatter.ToBank
 
 	byteArray, _ := ioutil.ReadAll(resp.Body)
 	data, err := sap_api_output_formatter.ConvertToToBank(byteArray, c.log)
+	if err != nil {
+		return nil, xerrors.Errorf("convert error: %w", err)
+	}
+	return data, nil
+}
+
+func (c *SAPAPICaller) callToContact(url string) ([]sap_api_output_formatter.ToContact, error) {
+	req, _ := http.NewRequest("GET", url, nil)
+	c.setHeaderAPIKeyAccept(req)
+
+	resp, err := new(http.Client).Do(req)
+	if err != nil {
+		return nil, xerrors.Errorf("API request error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	byteArray, _ := ioutil.ReadAll(resp.Body)
+	data, err := sap_api_output_formatter.ConvertToToContact(byteArray, c.log)
 	if err != nil {
 		return nil, xerrors.Errorf("convert error: %w", err)
 	}
